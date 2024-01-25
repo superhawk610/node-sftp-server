@@ -20,6 +20,62 @@ var fs = require('fs');
 
 var constants = require('constants');
 
+function formatLongnameTimestamp(mtime) {
+  const date = new Date(mtime * 1000);
+
+  const month = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][date.getMonth()];
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+
+  return `${month} ${day} ${hour}:${minute}`;
+}
+
+// adapted from https://github.com/kuzorov/node-sftp-server/blob/6af80f83fd667eb3d5f16286a23f98ddef9176f9/node-sftp-server.js#L39
+function buildLongname(name, attrs, owner = 'nobody', group = 'nogroup') {
+  let longname = '';
+
+	if (attrs.type === fs.constants.S_IFREG) {
+		longname += '-'
+	}
+	if (attrs.type === fs.constants.S_IFDIR) {
+		longname += 'd';
+	}
+
+	let permissions = attrs.permissions.toString().split('');
+	permissions.forEach((el) => {
+		el == 1 ? longname += '--x' : null;
+		el == 2 ? longname += '-w-' : null;
+		el == 3 ? longname += '-wx' : null;
+		el == 4 ? longname += 'r--' : null;
+		el == 5 ? longname += 'r-x' : null;
+		el == 6 ? longname += 'rw-' : null;
+		el == 7 ? longname += 'rwx' : null;
+	});
+
+	longname += ' 0';
+	longname += ' ' + owner + ' ' + group + ' ';
+	longname += attrs.size ? attrs.size : '0';
+	longname += ' ' + formatLongnameTimestamp(attrs.mtime);
+	longname += ' ' + name;
+
+	return longname;
+}
+
 var Responder = (function(superClass) {
   extend(Responder, superClass);
 
@@ -82,7 +138,7 @@ var DirectoryEmitter = (function(superClass) {
     }
     this.stopped = this.sftpStream.name(this.req, {
       filename: name.toString(),
-      longname: name.toString(),
+      longname: buildLongname(name.toString(), attrs),
       attrs: attrs
     });
     if (!this.stopped && !this.done) {
