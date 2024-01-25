@@ -49,23 +49,38 @@ function formatLongnameTimestamp(mtime) {
 function buildLongname(name, attrs, owner = 'nobody', group = 'nogroup') {
   let longname = '';
 
-	if (attrs.type === fs.constants.S_IFREG) {
-		longname += '-'
-	}
 	if (attrs.type === fs.constants.S_IFDIR) {
 		longname += 'd';
+	} else {
+    if (attrs.type !== fs.constants.S_IFREG) {
+      console.warn('`type` attribute not set, defaulting to `fs.constants.S_IFREG`');
+    }
+
+		longname += '-'
 	}
 
-	let permissions = attrs.permissions.toString(8).split('');
-	permissions.forEach((el) => {
-		el == 1 ? longname += '--x' : null;
-		el == 2 ? longname += '-w-' : null;
-		el == 3 ? longname += '-wx' : null;
-		el == 4 ? longname += 'r--' : null;
-		el == 5 ? longname += 'r-x' : null;
-		el == 6 ? longname += 'rw-' : null;
-		el == 7 ? longname += 'rwx' : null;
-	});
+  longname += attrs.permissions.toString(8).split('').map(el => {
+    switch (el) {
+      case '0':
+        return '---';
+      case '1':
+        return '--x';
+      case '2':
+        return '-w-';
+      case '3':
+        return '-wx';
+      case '4':
+        return 'r--';
+      case '5':
+        return 'r-x';
+      case '6':
+        return 'rw-';
+      case '7':
+        return 'rwx';
+      default:
+        throw new Error('unreachable');
+    }
+  }).join('');
 
 	longname += ' 0';
 	longname += ' ' + owner + ' ' + group + ' ';
